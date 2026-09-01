@@ -659,7 +659,12 @@ remote_handoff() { # <secondmate-id> <keys...>
     echo "       nothing new was staged." >&2
     return 1
   fi
-  for key in "${to_move[@]}"; do
+  # Every requested key can already be staged Queued in the outbox, which stages
+  # nothing new without being a refusal, so this array is legitimately empty on
+  # the interrupted-staging recovery path. Under `set -u` bash 3.2 (the stock
+  # macOS shell) a bare "${arr[@]}" on an empty array is an unbound-variable
+  # error, so the scan needs the guarded form the counted uses below do not.
+  for key in ${to_move[@]+"${to_move[@]}"}; do
     while IFS= read -r line; do
       printf 'error: refusing to hand off %s: non-2-space continuation line: %s\n' "$key" "$line" >&2
       return 1

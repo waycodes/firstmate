@@ -565,20 +565,25 @@ signal_turnend_panes_churned() {  # <file> ...
       return 1
     fi
   done
-  for key in "${missing_keys[@]}"; do
+  # Both arrays are legitimately empty in the ordinary case: every churned key
+  # already carrying a fresh marker leaves missing_keys empty, and the first
+  # marker write that fails unwinds with created_keys still empty. Under `set -u`
+  # bash 3.2 (the stock macOS shell) a bare "${arr[@]}" on an empty array is an
+  # unbound-variable error, so these scans use the guarded form.
+  for key in ${missing_keys[@]+"${missing_keys[@]}"}; do
     marker="$STATE/.churn-since-$key"
     if (set -C; printf '%s' "$now_s" > "$marker") 2>/dev/null; then
       created_keys+=("$key")
       continue
     fi
-    for created in "${created_keys[@]}"; do
+    for created in ${created_keys[@]+"${created_keys[@]}"}; do
       rm -f "$STATE/.churn-since-$created"
     done
     return 1
   done
   for key in "${churned_keys[@]}"; do
     if ! rm -f "$STATE/.stale-$key" "$STATE/.wedge-escalations-$key"; then
-      for created in "${created_keys[@]}"; do
+      for created in ${created_keys[@]+"${created_keys[@]}"}; do
         rm -f "$STATE/.churn-since-$created"
       done
       return 1
