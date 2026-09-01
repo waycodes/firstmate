@@ -96,6 +96,23 @@ assert_crossed_project_loop() {
   fi
 }
 
+# assert_refused_inside_project_loop <interpreter-label> <out-file> <rc>
+# The negative control for the loop body. `no registry record` is raised only
+# from inside the loop, after the mode and origin checks, so an expansion that
+# silently dropped its elements would skip the body entirely, leave the project
+# list empty, and land on the readiness refusal instead of this one.
+assert_refused_inside_project_loop() {
+  local label=$1 out=$2 rc=$3
+  assert_no_grep 'unbound variable' "$out" \
+    "$label: the seed aborted on an unbound variable instead of entering the project loop"$'\n'"$(cat "$out")"
+  assert_grep 'no registry record' "$out" \
+    "$label: an unregistered project was never refused from inside the project loop"$'\n'"$(cat "$out")"
+  assert_no_grep 'remote runtime preflight failed' "$out" \
+    "$label: an unregistered project reached the readiness gate instead of the loop body's refusal"$'\n'"$(cat "$out")"
+  [ "$rc" -ne 0 ] || fail \
+    "$label: the seed reported success for a project with no registry record"$'\n'"$(cat "$out")"
+}
+
 # --- locate a Bash 3.x interpreter ------------------------------------------
 # /bin/bash is Bash 3.2.57 on every supported macOS. FM_TEST_BASH3 lets a
 # maintainer point this arm at a built 3.2 elsewhere.
@@ -132,6 +149,10 @@ assert_no_grep 'no registry record' "$TMP_ROOT/ambient-alpha.out" \
   "ambient bash: the guarded expansion stopped the loop body from resolving its project"
 pass "ambient bash: a named project still resolves through the loop body unchanged"
 
+RC=$(seed_under "$AMBIENT" ambient-beta "$TMP_ROOT/ambient-beta.out" "beta=$ALPHA_ORIGIN")
+assert_refused_inside_project_loop "ambient bash ($BASH_VERSION)" "$TMP_ROOT/ambient-beta.out" "$RC"
+pass "ambient bash: an unregistered project is still refused from inside the loop body"
+
 # --- located Bash 3.x -------------------------------------------------------
 # This arm is the only one that can observe the defect, so a primary without a
 # 3.x interpreter leaves the run classified as a gate skip by the line already
@@ -149,5 +170,9 @@ assert_crossed_project_loop "bash $BASH3_VERSION" "$TMP_ROOT/bash3-alpha.out" ba
 assert_no_grep 'no registry record' "$TMP_ROOT/bash3-alpha.out" \
   "bash $BASH3_VERSION: the guarded expansion stopped the loop body from resolving its project"
 pass "bash $BASH3_VERSION: a named project still resolves through the loop body unchanged"
+
+RC=$(seed_under "$BASH3" bash3-beta "$TMP_ROOT/bash3-beta.out" "beta=$ALPHA_ORIGIN")
+assert_refused_inside_project_loop "bash $BASH3_VERSION" "$TMP_ROOT/bash3-beta.out" "$RC"
+pass "bash $BASH3_VERSION: an unregistered project is still refused from inside the loop body"
 
 echo "ALL TESTS PASSED"

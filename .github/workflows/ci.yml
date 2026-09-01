@@ -396,17 +396,19 @@ jobs:
           # allowed to report an absent interpreter here.
           seed_output=$(/bin/bash tests/fm-remote-home-seed-bash32.test.sh)
           printf '%s\n' "$seed_output"
-          seed_count=$(printf '%s\n' "$seed_output" | grep -c '^ok - ')
-          [ "$seed_count" -eq 4 ] || {
-            echo "::error::expected 4 remote-seed Bash 3.2 tests, got $seed_count"
-            exit 1
-          }
+          # An absent interpreter also lowers the ok count, so this refusal is
+          # checked first to keep its specific diagnosis reachable.
           case "$seed_output" in
             *'skip: bash 3.x not found'*)
               echo "::error::the stock macOS lane found no Bash 3.x interpreter"
               exit 1
               ;;
           esac
+          seed_count=$(printf '%s\n' "$seed_output" | grep -c '^ok - ')
+          [ "$seed_count" -eq 6 ] || {
+            echo "::error::expected 6 remote-seed Bash 3.2 tests, got $seed_count"
+            exit 1
+          }
 
   invariants:
     name: Repo invariants
