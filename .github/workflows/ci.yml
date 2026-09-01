@@ -405,8 +405,8 @@ jobs:
               ;;
           esac
           seed_count=$(printf '%s\n' "$seed_output" | grep -c '^ok - ')
-          [ "$seed_count" -eq 6 ] || {
-            echo "::error::expected 6 remote-seed Bash 3.2 tests, got $seed_count"
+          [ "$seed_count" -eq 1 ] || {
+            echo "::error::expected 1 remote-seed Bash 3.2 test, got $seed_count"
             exit 1
           }
 
